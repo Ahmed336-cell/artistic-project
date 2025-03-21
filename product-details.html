@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+
+
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="base.html">Home</a>
+        <a href="cart.html">Cart</a>
+    </nav>
+
+    <div class="container">
+        <div class="product-details">
+            <div class="image-container">
+                <img id="productImage" src="" alt="Product Image">
+            </div>
+            <div class="details-container">
+                <h1 id="productTitle"></h1>
+                <p class="price"><s id="oldPrice"></s> <span id="newPrice"></span></p>
+                <p>Category: <span class="badge">Paintings</span></p>
+                <label for="quantity">Quantity</label>
+                <select id="quantity">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+                <button class="cart-btn"><i class="fas fa-shopping-cart"></i> Add to cart</button>
+                <p class="description"><strong>Description:</strong> <span id="description"></span></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
