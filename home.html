@@ -4,6 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home - Artistic</title>
+    <style>
+        /* Basic styling for the product grid */
+        .products-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .product-info {
+            padding: 15px;
+        }
+        .sale-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #e53e3e;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <!-- Hero Banner -->
@@ -36,7 +73,7 @@
     <div class="products-container">
         <!-- Product 1 -->
         <div class="product-card">
-            <a href="product-details.html?title=A girl with Flower&price=7000.00 EGP&image=images/AGirlwithFlowersonthe Grass..jpg">
+            <a href="product-details.html?title=A%20girl%20with%20Flower&price=7000.00%20EGP&image=images/AGirlwithFlowersonthe%20Grass..jpg&description=A%20beautiful%20painting%20of%20a%20girl%20with%20flowers%20on%20the%20grass.">
                 <img src="images/AGirlwithFlowersonthe Grass..jpg" alt="A girl with Flower" class="product-image">
             </a>
             <div class="product-info">
@@ -47,7 +84,7 @@
 
         <!-- Product 2 -->
         <div class="product-card">
-            <a href="product-details.html?title=Brooklyn&price=5000.00 EGP&image=images/brooklyn.jpg">
+            <a href="product-details.html?title=Brooklyn&price=5000.00%20EGP&image=images/brooklyn.jpg&description=A%20stunning%20view%20of%20Brooklyn%20that%20captures%20the%20essence%20of%20the%20city.">
                 <img src="images/brooklyn.jpg" alt="Brooklyn" class="product-image">
             </a>
             <div class="product-info">
@@ -59,7 +96,7 @@
         <!-- Product 3 -->
         <div class="product-card" style="position: relative;">
             <div class="sale-badge">Sale</div>
-            <a href="product-details.html?title=Fantail Wrens&price=1500.00 EGP&image=images/FantailWrens..jpg">
+            <a href="product-details.html?title=Fantail%20Wrens&price=1500.00%20EGP&oldPrice=4000.00%20EGP&image=images/FantailWrens..jpg&description=Beautiful%20Fantail%20Wrens%20captured%20in%20their%20natural%20habitat.">
                 <img src="images/FantailWrens..jpg" alt="Fantail Wrens" class="product-image">
             </a>
             <div class="product-info">
@@ -70,7 +107,7 @@
 
         <!-- Product 4 -->
         <div class="product-card">
-            <a href="product-details.html?title=SteveJohnson&price=6000.00 EGP&image=images/SteveJohnson.jpg">
+            <a href="product-details.html?title=Steve%20Johnson&price=6000.00%20EGP&image=images/SteveJohnson.jpg&description=An%20abstract%20piece%20by%20the%20renowned%20artist%20Steve%20Johnson.">
                 <img src="images/SteveJohnson.jpg" alt="Abstract art by Steve Johnson" class="product-image">
             </a>
             <div class="product-info">
