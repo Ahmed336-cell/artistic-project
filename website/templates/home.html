@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section position-relative overflow-hidden">
+    <div class="hero-image" style="background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3)), url('/static/images/bc.jpg') no-repeat center center/cover; height: 500px;">
+        <div class="container h-100 d-flex align-items-center">
+            <div class="text-white col-lg-8">
+                <h1 class="display-3 fw-bold mb-4 animate__animated animate__fadeInUp">Discover Unique Art</h1>
+                <p class="lead fs-4 mb-5 animate__animated animate__fadeInUp animate__delay-1s">
+                    <strong>Artistic</strong> connects creators and collectors in a vibrant marketplace for paintings, sculptures, handmade crafts, and digital artwork.
+                </p>
+                <div class="animate__animated animate__fadeInUp animate__delay-2s">
+                    <a href="#products-section" class="btn btn-lg btn-light px-5 py-3 fw-semibold">Explore Collection</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Category Navigation -->
+<div class="container-fluid bg-white sticky-top shadow-sm category-nav">
+    <div class="container">
+        <ul class="nav nav-pills nav-fill flex-nowrap overflow-auto py-3" id="category-nav">
+            <li class="nav-item">
+                <a class="nav-link category-link {% if not request.GET.category %}active{% endif %}" 
+                   href="{% url 'home' %}">
+                   <span class="d-flex align-items-center justify-content-center gap-2">
+                       <i class="bi bi-grid"></i> All
+                   </span>
+                </a>
+            </li>
+            {% for category in categories %}
+            <li class="nav-item">
+                <a class="nav-link category-link {% if request.GET.category == category %}active{% endif %}" 
+                   href="{% url 'filter_products' %}?category={{ category }}">
+                   {{ category }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Products Section -->
+<section id="products-section" class="py-5">
+    <div class="container py-4">
+        <h2 class="text-center mb-5 fw-bold">Featured Artwork</h2>
+        <div class="products-container" style="height: 800px; overflow-y: auto; padding-right: 5px;">
+            <div class="row g-4">
+                {% for product in products %}
+                <div class="col-12 col-lg-6">
+                    <div class="card mb-4 product-card border-0 shadow-sm overflow-hidden">
+                        {% if product.is_on_sale %}
+                        <div class="badge bg-danger text-white position-absolute px-3 py-2 rounded-pill" style="top: 1rem; right: 1rem">SALE</div>
+                        {% endif %}
+                        <div class="row g-0">
+                            <!-- Product image-->
+                            <div class="col-md-5">
+                                <div class="product-image-container">
+                                    <img class="product-image" src="{{ product.image.url }}" alt="{{ product.name }}" />
+                                </div>
+                            </div>
+                            <!-- Product details-->
+                            <div class="col-md-7">
+                                <div class="card-body p-4">
+                                    <h5 class="fw-bold mb-3">{{ product.name }}</h5>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            {% if product.is_on_sale %}
+                                            <span class="text-decoration-line-through text-muted me-2">{{ product.price }} EGP</span>
+                                            <span class="fw-bold text-danger">{{ product.sale_price }} EGP</span>
+                                            {% else %}
+                                            <span class="fw-bold">{{ product.price }} EGP</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'product' product.id %}">
+                                        <i class="bi bi-eye me-2"></i>Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Custom script for category highlight effect -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const categoryLinks = document.querySelectorAll('.category-link');
+        
+        categoryLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                // Store the clicked category in localStorage
+                localStorage.setItem('lastClickedCategory', this.getAttribute('href'));
+                
+                // Change background color on click
+                categoryLinks.forEach(l => l.classList.remove('active-category'));
+                this.classList.add('active-category');
+            });
+        });
+        
+        // Check if there's a stored category and highlight it
+        const lastClicked = localStorage.getItem('lastClickedCategory');
+        if (lastClicked) {
+            categoryLinks.forEach(link => {
+                if (link.getAttribute('href') === lastClicked) {
+                    link.classList.add('active-category');
+                }
+            });
+        }
+    });
+</script>
+
+<!-- Custom styles -->
+<style>
+    /* Scrollbar styling */
+    .products-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .products-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .products-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    
+    .products-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    /* Smooth scrolling */
+    .products-container {
+        scroll-behavior: smooth;
+    }
+    
+    /* Category active state styling */
+    .category-link.active-category,
+    .category-link:hover {
+        background-color: #f0f0f0 !important;
+        color: #212529 !important;
+        transition: background-color 0.3s ease;
+    }
+    
+    .nav-link.active {
+        background-color: #0d6efd !important;
+        color: white !important;
+    }
+
+    /* Product card hover effect */
+    .product-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+    }
+    
+    /* Fixed image size styling */
+    .product-image-container {
+        height: 250px;
+        width: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .product-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+</style>
+{% endblock %}

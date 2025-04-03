@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light rounded mb-4">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link  text-white" href="{% url 'home' %}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link  text-white" href="{% url 'cart_summary' %}">
+              <i class="bi-cart me-1  text-white"></i>Cart
+              <span class="badge bg-primary rounded-pill  text-white" id="cart_quantity">{{ cart_quantity }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Product Details -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="row g-0">
+      <!-- Product Image -->
+      <div class="col-lg-5 p-3">
+        <div class="position-relative">
+          {% if product.is_on_sale %}
+          <div class="badge bg-danger text-white position-absolute" style="top: 1rem; left: 1rem; z-index: 1;">SALE</div>
+          {% endif %}
+          <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}">
+        </div>
+      </div>
+      
+      <!-- Product Info -->
+      <div class="col-lg-7">
+        <div class="card-body p-4">
+          <h2 class="card-title fw-bold mb-3">{{ product.name }}</h2>
+          
+          <div class="d-flex align-items-center mb-3">
+            <span class="badge bg-secondary me-2">{{ product.category }}</span>
+            {% if product.is_on_sale %}
+            <div class="ms-auto">
+              <span class="text-decoration-line-through text-muted me-2">{{ product.price }} EGP</span>
+              <span class="fs-4 fw-bold text-danger">{{ product.sale_price }} EGP</span>
+            </div>
+            {% else %}
+            <span class="ms-auto fs-4 fw-bold">{{ product.price }} EGP</span>
+            {% endif %}
+          </div>
+          
+          <div class="mb-4">
+            <div class="row align-items-center g-3">
+              <div class="col-sm-3">
+                <label for="quantity_cart" class="form-label fw-semibold mb-0">Quantity</label>
+              </div>
+              <div class="col-sm-3">
+                <select class="form-select" id="quantity_cart">
+                  {% for i in "12345678"|make_list %}
+                  <option value="{{ i }}">{{ i }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <button type="button" value="{{ product.id }}" class="btn btn-primary btn-lg w-100 mb-3" id="add_cart">
+            <i class="bi-cart-plus me-2"></i>Add to Cart
+          </button>
+          
+          <div class="card mt-4 bg-light border-0">
+            <div class="card-body">
+              <h5 class="card-title text-white">Product Description</h5>
+              <p class="card-text  text-white">{{ product.description }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Related Products Section could go here -->
+</div>
+
+<script>
+  $(document).on('click', '#add_cart', function(e) {
+    e.preventDefault();
+    
+    // Add loading state
+    const $button = $(this);
+    $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...');
+    $button.prop('disabled', true);
+    
+    $.ajax({
+      type: 'POST',
+      url: '{% url "cart_add" %}',
+      data: {
+        product_id: $('#add_cart').val(),
+        product_qty: $('#quantity_cart option:selected').text(),
+        csrfmiddlewaretoken: '{{ csrf_token }}',
+        action: 'post'
+      },
+      success: function(json) {
+        document.getElementById("cart_quantity").textContent = json.quantity;
+        
+        // Show success toast
+        const toast = `<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+          <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-success text-white">
+              <strong class="me-auto">Success</strong>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+              Item added to your cart!
+            </div>
+          </div>
+        </div>`;
+        
+        $('body').append(toast);
+        setTimeout(() => {
+          $('.toast').toast('hide');
+          location.reload();
+        }, 1500);
+      },
+      error: function(xhr, errmsg, err) {
+        // Reset button
+        $button.html('<i class="bi-cart-fill me-1"></i> Add to cart');
+        $button.prop('disabled', false);
+        
+        // Show error message
+        const toast = `<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+          <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+              <strong class="me-auto">Error</strong>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+              Unable to add item to cart. Please try again.
+            </div>
+          </div>
+        </div>`;
+        
+        $('body').append(toast);
+        setTimeout(() => {
+          $('.toast').toast('hide');
+        }, 3000);
+      }
+    });
+  });
+</script>
+{% endblock %}
