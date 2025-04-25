@@ -201,3 +201,9 @@ def search(request):
             return render(request, "search.html", {"searched": searched})
     else:
         return render(request, "search.html", {})
+def orders(request):
+    """
+    Display the orders page.
+    Note: This just renders the template since orders are stored in localStorage.
+    """
+    return render(request, 'orders.html')

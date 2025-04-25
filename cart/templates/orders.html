@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<!-- Hero Header -->
+<header class="position-relative overflow-hidden py-5" style="background: linear-gradient(to right, rgba(30, 41, 59, 0.7), rgba(30, 41, 59, 0.7)), url('/static/images/bc.jpg') no-repeat center center/cover; height: 300px;">
+  <div class="container h-100 d-flex align-items-center justify-content-center">
+    <div class="text-center text-white p-4 rounded-3" style="backdrop-filter: blur(5px); background: rgba(0, 0, 0, 0.3);">
+      <h1 class="display-4 fw-bold mb-2">Your Orders</h1>
+      <p class="lead fw-normal text-white-50">
+        Track and manage your purchase history
+      </p>
+    </div>
+  </div>
+</header>
+
+<div class="container py-5">
+  <!-- Debug information section -->
+  <div class="card mb-4 bg" id="debug-info" style="display: none;">
+   
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <div id="orders-container">
+        <!-- Orders will be loaded here by JavaScript -->
+        <div class="text-center py-5" id="no-orders">
+          <div class="mb-4">
+            <i class="fas fa-box-open fa-4x text-muted"></i>
+          </div>
+          <h3>No Orders Found</h3>
+          <p class="text-muted mb-4">You haven't placed any orders yet.</p>
+          <a href="{% url 'home'%}" class="btn btn-primary px-4 py-2">
+            Start Shopping
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+  // Show debug information in development
+  const showDebug = true;
+  
+  // Function to log both to console and to the debug panel
+  function debugLog(message, data) {
+    console.log(message, data);
+    if (showDebug) {
+      $('#debug-info').show();
+      $('#debug-content').append(`<p><strong>${message}</strong>: ${JSON.stringify(data)}</p>`);
+    }
+  }
+  
+  // Function to inspect localStorage
+  function inspectLocalStorage() {
+    const allKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      allKeys.push({
+        key: key,
+        value: localStorage.getItem(key)
+      });
+    }
+    return allKeys;
+  }
+  
+  // List all localStorage items to find our orders
+  const allStorageItems = inspectLocalStorage();
+  debugLog("All localStorage items", allStorageItems);
+  
+  // Get current user's ID
+  const userId = getUserId();
+  debugLog("Current User ID", userId);
+  
+  // Check directly if orders exist for this user
+  const ordersKey = 'orders_' + userId;
+  const ordersRaw = localStorage.getItem(ordersKey);
+  debugLog("Raw orders data", ordersRaw);
+  
+  // Try to parse the orders data
+  let orders = [];
+  try {
+    orders = JSON.parse(ordersRaw || '[]');
+    debugLog("Parsed Orders", orders);
+  } catch (e) {
+    debugLog("Error parsing orders", e.message);
+    orders = [];
+  }
+  
+  // Also check for orders without user prefix (older format)
+  const legacyOrders = localStorage.getItem('orders');
+  if (legacyOrders) {
+    debugLog("Found legacy orders", legacyOrders);
+    try {
+      const parsedLegacy = JSON.parse(legacyOrders);
+      // If legacy orders exist and current user has no orders, use legacy
+      if (parsedLegacy.length > 0 && orders.length === 0) {
+        orders = parsedLegacy;
+        debugLog("Using legacy orders", orders);
+      }
+    } catch (e) {
+      debugLog("Error parsing legacy orders", e.message);
+    }
+  }
+  
+  // If there are orders, display them
+  if (orders && orders.length > 0) {
+    $('#no-orders').hide();
+    
+    // Render each order
+    orders.forEach(function(order, index) {
+      debugLog(`Processing order ${index}`, order);
+      
+      // Convert order date to readable format
+      let orderDate = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Try to parse the order date if it exists
+      if (order.date) {
+        try {
+          orderDate = new Date(order.date).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+        } catch (e) {
+          debugLog("Error parsing date", e.message);
+        }
+      }
+      
+      // Calculate delivery date (5 days after order)
+      const deliveryDate = new Date();
+      deliveryDate.setDate(deliveryDate.getDate() + 5);
+      const formattedDeliveryDate = deliveryDate.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Get status or default to "Processing"
+      const status = order.status || "Processing";
+      
+      // Get status class based on order status
+      let statusClass = 'bg-primary';
+      if (status === 'Delivered') {
+        statusClass = 'bg-success';
+      } else if (status === 'Processing') {
+        statusClass = 'bg-warning text-dark';
+      } else if (status === 'Cancelled') {
+        statusClass = 'bg-danger';
+      }
+      
+      // Create order card
+      let orderCard = `
+        <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+          <div class="card-header bg d-flex justify-content-between align-items-center p-4">
+            <div>
+              <h5 class="fw-bold mb-1">Order #${order.id || 'Unknown'}</h5>
+              <p class="text-muted mb-0">Placed on ${orderDate}</p>
+            </div>
+            <div>
+              <span class="badge ${statusClass}">${status}</span>
+            </div>
+          </div>
+          <div class="card-body p-4">
+            <div class="row">`;
+      
+      // Check if items exist and is an array
+      if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+        debugLog(`Found ${order.items.length} items in order`, order.items);
+        
+        // Add each item in the order
+        order.items.forEach(function(item) {
+          orderCard += `
+            <div class="col-md-12 mb-3">
+              <div class="d-flex align-items-center">
+                <div class="flex-shrink-0" style="width: 60px; height: 60px;">
+                  <img src="${item.image || '/static/images/placeholder.jpg'}" class="img-fluid rounded" alt="${item.name || 'Product'}" style="object-fit: cover; width: 100%; height: 100%;">
+                </div>
+                <div class="flex-grow-1 ms-3">
+                  <h6 class="mb-0">${item.name || 'Unknown Product'}</h6>
+                  <p class="text-muted mb-0">Qty: ${item.quantity || '1'}</p>
+                </div>
+                <div class="ms-auto">
+                  <span class="fw-bold">${item.price || 'N/A'}</span>
+                </div>
+              </div>
+            </div>`;
+        });
+      } else {
+        debugLog("No items found in order or items not in expected format", order);
+        
+        // If the order has a total but no items array, try to create a placeholder item
+        orderCard += `
+          <div class="col-md-12 mb-3">
+            <div class="alert alert-warning mb-0">
+              <p class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Order details not available</p>
+            </div>
+          </div>`;
+      }
+      
+      // Add order summary
+      orderCard += `
+            </div>
+            <hr>
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" href="#orderDetails${index}" role="button" aria-expanded="false">
+                  <span class="details-text">Show Details</span> <i class="fas fa-chevron-down ms-1 details-icon"></i>
+                </button>
+              </div>
+              <div class="text-end">
+                <p class="text-muted mb-1">Order Total:</p>
+                <h5 class="fw-bold">${order.total || 'N/A'}</h5>
+              </div>
+            </div>
+            
+            <div class="collapse mt-3" id="orderDetails${index}">
+              <div class="card card-body border-0 bg rounded-3">
+                <div class="row">
+                  <div class="col-md-6">
+                    <h6 class="fw-bold mb-3">Delivery Information</h6>
+                    <p class="mb-1"><i class="fas fa-truck me-2 text-primary"></i> <strong>Status:</strong> ${status}</p>
+                    <p class="mb-1"><i class="fas fa-calendar-alt me-2 text-primary"></i> <strong>Expected Delivery:</strong> ${formattedDeliveryDate}</p>
+                  </div>
+                  <div class="col-md-6">
+                    <h6 class="fw-bold mb-3">Payment Information</h6>
+                    <p class="mb-1"><i class="fas fa-credit-card me-2 text-primary"></i> <strong>Payment Method:</strong> ${order.paymentMethod || 'Credit Card'}</p>
+                    <p class="mb-1"><i class="fas fa-receipt me-2 text-primary"></i> <strong>Subtotal:</strong> ${order.subtotal || calculateSubtotal(order.total || '0')}</p>
+                    <p class="mb-1"><i class="fas fa-truck-loading me-2 text-primary"></i> <strong>Shipping:</strong> ${order.shipping || 'Free'}</p>
+                    <p class="mb-0 fw-bold"><i class="fas fa-money-bill-wave me-2 text-primary"></i> <strong>Total:</strong> ${order.total || 'N/A'}</p>
+                  </div>
+                </div>
+                
+                <div class="mt-4">
+                  
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      
+      // Add order to the container
+      $('#orders-container').prepend(orderCard);
+      debugLog(`Added order card ${index} to DOM`, order.id);
+    });
+    
+    // Toggle details button text
+    $(document).on('click', '[data-bs-toggle="collapse"]', function() {
+      const $button = $(this);
+      setTimeout(function() {
+        const isExpanded = $button.attr('aria-expanded') === 'true';
+        $button.find('.details-text').text(isExpanded ? 'Hide Details' : 'Show Details');
+        $button.find('.details-icon').toggleClass('fa-chevron-down fa-chevron-up');
+      }, 150);
+    });
+  } else {
+    debugLog("No orders found for user", userId);
+  }
+  
+  // Helper function to calculate subtotal
+  function calculateSubtotal(total) {
+    // Handle different currency formats ($ or EGP)
+    if (!total) return '0';
+    
+    total = total.toString();
+    
+    let totalValue;
+    if (total.includes('$')) {
+      totalValue = parseFloat(total.replace('$', ''));
+      return '$' + (totalValue - 5).toFixed(2);
+    } else if (total.includes('EGP')) {
+      totalValue = parseFloat(total.replace('EGP', '').trim());
+      return (totalValue - 0).toFixed(2) + ' EGP'; // No shipping charge in EGP
+    } else {
+      // Default case - just number
+      totalValue = parseFloat(total);
+      return (totalValue - 0).toFixed(2);
+    }
+  }
+  
+  // Set functions in global scope
+  window.printOrderDetails = function(orderId) {
+    alert('Printing receipt for Order #' + orderId);
+  };
+  
+  window.trackOrder = function(orderId) {
+    alert('Tracking Order #' + orderId);
+  };
+
+  // Helper function to get user ID
+  function getUserId() {
+    // If user is authenticated, try to get their username/ID from the page
+    const username = '{{ user.username }}' || 'guest';
+    
+    // If the username is empty (template variable not populated), 
+    // use a guest ID based on browser fingerprint
+    if (!username || username === 'guest') {
+      // Generate a consistent guest ID using available browser info
+      const browserInfo = navigator.userAgent + navigator.language + screen.width + screen.height;
+      return 'guest_' + hashCode(browserInfo);
+    }
+    
+    return username;
+  }
+
+  // Simple hash function to generate consistent IDs for guest users
+  function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16).substring(0, 8);
+  }
+  
+  // Check for orders in all possible storage keys
+  if (showDebug) {
+    // Check all possible storage keys for orders
+    const possibleKeys = [
+      'orders',
+      'orders_' + userId,
+      'order_' + userId,
+      'cart_' + userId,
+      'cartItems'
+    ];
+    
+    possibleKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value) {
+        debugLog(`Found data in localStorage with key: ${key}`, value);
+      }
+    });
+  }
+  
+  // Add button to create sample order for testing
+  if (showDebug) {
+    $('#debug-content').append(`
+      <div class="mt-3">
+        <button id="create-sample-order" class="btn btn-sm btn-primary">Create Sample Order</button>
+        <button id="clear-orders" class="btn btn-sm btn-danger ms-2">Clear All Orders</button>
+      </div>
+    `);
+    
+    // Create sample order handler
+    $('#create-sample-order').on('click', function() {
+      const sampleOrder = {
+        id: 'ORD-' + Math.floor(100000 + Math.random() * 900000),
+        date: new Date().toISOString(),
+        status: 'Processing',
+        total: '1250 EGP',
+        items: [
+          {
+            name: 'Sample Product 1',
+            price: '750 EGP',
+            quantity: '1',
+            image: '/static/images/placeholder.jpg'
+          },
+          {
+            name: 'Sample Product 2',
+            price: '500 EGP',
+            quantity: '1',
+            image: '/static/images/placeholder.jpg'
+          }
+        ]
+      };
+      
+      // Get existing orders
+      let orders = [];
+      try {
+        orders = JSON.parse(localStorage.getItem('orders_' + userId) || '[]');
+      } catch (e) {
+        orders = [];
+      }
+      
+      // Add new order
+      orders.unshift(sampleOrder);
+      
+      // Save back to localStorage
+      localStorage.setItem('orders_' + userId, JSON.stringify(orders));
+      
+      // Reload page
+      location.reload();
+    });
+    
+    // Clear orders handler
+    $('#clear-orders').on('click', function() {
+      // Remove all possible order keys
+      const possibleKeys = [
+        'orders',
+        'orders_' + userId,
+        'order_' + userId
+      ];
+      
+      possibleKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Reload page
+      location.reload();
+    });
+  }
+});
+</script>
+{% endblock %}

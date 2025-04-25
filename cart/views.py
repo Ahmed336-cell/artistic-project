@@ -54,20 +54,32 @@ def cart_add(request):
         #return response
 
 def cart_delete(request):
-    # Get a cart
-    cart = Cart(request)
-
     # If action is 'post'
     if request.POST.get('action') == 'post':
-
-        # Get a product id
-        product_id = int(request.POST.get('product_id'))
-
-        cart.delete_product(product = product_id)
-
-        response = JsonResponse({'product': product_id})
-        messages.success(request, "Product has been successfully removed from your cart...")
-        return response
+        try:
+            # Get product id
+            product_id = int(request.POST.get('product_id'))
+            
+            # Check if this is a clear all request
+            clear_all = request.POST.get('clear_all', 'false').lower() == 'true'
+            
+            # Get the cart
+            cart = Cart(request)
+            
+            # Delete the product
+            cart.delete_product(product=product_id)
+            
+            # Return success response
+            response = JsonResponse({'status': 'success', 'product': product_id})
+            messages.success(request, "Product has been successfully removed from your cart.")
+            return response
+            
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Error in cart_delete: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 def cart_update(request):
     # Get a cart

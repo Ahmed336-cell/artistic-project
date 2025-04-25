@@ -88,36 +88,45 @@
       {% endfor %}
     </div>
     
-    <!-- Order summary -->
-    <div class="col-lg-4">
-      <div class="card border-0 shadow-sm rounded-4 position-sticky" style="top: 2rem;">
-        <div class="card-header bg-transparent border-0 pt-4 ps-4">
-          <h5 class="fw-bold">Order Summary</h5>
-        </div>
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Subtotal</span>
-            <span class="fw-medium">{{ totals }} EGP</span>
-          </div>
-          <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Shipping</span>
-            <span class="fw-medium">Free</span>
-          </div>
-          <hr>
-          <div class="d-flex justify-content-between mb-4">
-            <span class="fw-bold">Total</span>
-            <span class="fw-bold fs-5">{{ totals }} EGP</span>
-          </div>
-          <button class="btn btn-primary w-100 py-2 mb-3">
-            Proceed to Checkout
-          </button>
-          <p class="text-center mb-0 text-muted small">
-            <i class="fas fa-lock me-1"></i> Secure checkout
-          </p>
-        </div>
+  <!-- Order summary -->
+<div class="col-lg-4">
+  <div class="card border-0 shadow-sm rounded-4 position-sticky" style="top: 2rem;">
+    <div class="card-header bg-transparent border-0 pt-4 ps-4">
+      <h5 class="fw-bold">Order Summary</h5>
+    </div>
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between mb-3">
+        <span class="text-muted">Subtotal</span>
+        <span class="fw-medium">{{ totals }} EGP</span>
       </div>
+      <div class="d-flex justify-content-between mb-3">
+        <span class="text-muted">Shipping</span>
+        <span class="fw-medium">Free</span>
+      </div>
+      <hr>
+      <div class="d-flex justify-content-between mb-4">
+        <span class="fw-bold">Total</span>
+        <span class="fw-bold fs-5">{{ totals }} EGP</span>
+      </div>
+      
+      {% if user.is_authenticated %}
+        <button class="btn btn-primary w-100 py-2 mb-3" id="checkout-btn">
+          Proceed to Checkout
+        </button>
+        <p class="text-center mb-0 text-muted small">
+          <i class="fas fa-lock me-1"></i> Secure checkout
+        </p>
+      {% else %}
+        <button class="btn btn-secondary w-100 py-2 mb-3" disabled>
+          Login Required to Checkout
+        </button>
+        <p class="text-center mb-0 text-danger small">
+          <i class="fas fa-exclamation-circle me-1"></i> Please <a href="{% url 'login_user' %}" class="text-danger fw-bold">log in</a> to complete your purchase
+        </p>
+      {% endif %}
     </div>
   </div>
+</div>
   {% else %}
   <div class="text-center py-5">
     <div class="mb-4">
@@ -133,7 +142,7 @@
 </div>
 
 <script>
-// Update Cart
+// Update cart
 $(document).on('click', '.update-cart', function(e){
   e.preventDefault();
   // grab the product id
@@ -159,19 +168,271 @@ $(document).on('click', '.update-cart', function(e){
 $(document).on('click', '.delete-product', function(e){
   e.preventDefault();
   
+  var productid = $(this).data('index');
+  
   $.ajax({
     type: 'POST',
     url: '{% url "cart_delete" %}',
     data: {
-      product_id: $(this).data('index'),
+      product_id: productid,
       csrfmiddlewaretoken: '{{ csrf_token }}',
       action: 'post'
     },
     success: function(json){
       location.reload();
     },
-    error: function(xhr, errmsg, err){}
+    error: function(xhr, errmsg, err){
+      console.error("Error removing item:", err);
+      alert("Failed to remove item from cart. Please try again.");
+    }
   });
 });
+
+// Checkout button handler - only attach to enabled checkout button
+$('#checkout-btn').on('click', function(e) {
+  e.preventDefault();
+  
+  // Show loading state
+  const $button = $(this);
+  const originalText = $button.text();
+  $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...');
+  
+  // Collect order data BEFORE clearing the cart
+  const orderData = collectOrderData();
+  
+  // Simulate processing delay
+  setTimeout(function() {
+    // Clear cart data from localStorage (if you're using it)
+    localStorage.removeItem('cart');
+    
+    // Create an array of all products in cart to clear
+    const productIds = [];
+    $('.delete-product').each(function() {
+      productIds.push($(this).data('index'));
+    });
+    
+    // If there are products, clear them one by one
+    if (productIds.length > 0) {
+      // Counter to track completion
+      let completedRequests = 0;
+      
+      // Process each product removal
+      productIds.forEach(function(productId) {
+        $.ajax({
+          type: 'POST',
+          url: '{% url "cart_delete" %}',
+          data: {
+            product_id: productId,
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            action: 'post'
+          },
+          success: function() {
+            completedRequests++;
+            // When all products are removed, show success message
+            if (completedRequests === productIds.length) {
+              // Generate order number
+              const orderNumber = generateOrderNumber();
+              
+              // Save order to localStorage AFTER collecting the data but BEFORE clearing the UI
+              saveOrderToLocalStorage(orderNumber, orderData);
+              
+              // Show success message
+              showOrderSuccess(orderNumber);
+            }
+          },
+          error: function() {
+            // On error, restore button state
+            $button.prop('disabled', false).text(originalText);
+            alert('There was an error processing your order. Please try again.');
+          }
+        });
+      });
+    } else {
+      // If cart is already empty, just show success
+      const orderNumber = generateOrderNumber();
+      saveOrderToLocalStorage(orderNumber, orderData);
+      showOrderSuccess(orderNumber);
+    }
+  }, 1500); // 1.5 second delay to simulate processing
+});
+
+// Function to collect order data before clearing the cart
+function collectOrderData() {
+  console.log("Collecting order data from cart...");
+  
+  // Get current cart products and totals from the page
+  const orderItems = [];
+  
+  // Collect all products in cart
+  $('.card.border-0.shadow-sm.rounded-4.mb-4').each(function() {
+    const $card = $(this);
+    
+    // Extract product details more accurately
+    const name = $card.find('.card-title').text().trim();
+    console.log("Found product name:", name);
+    
+    // Get the correct price (handle sale price case)
+    let price;
+    if ($card.find('.text-danger').length > 0) {
+      // Sale price exists
+      price = $card.find('.text-danger').text().trim();
+    } else {
+      // Regular price - find the most appropriate price element
+      const priceEl = $card.find('.fw-bold:not(.card-title)').first();
+      price = priceEl.text().trim();
+    }
+    console.log("Found product price:", price);
+    
+    // Get quantity
+    const quantity = $card.find('select option:selected').text().trim();
+    console.log("Found product quantity:", quantity);
+    
+    // Get image URL
+    const image = $card.find('img').attr('src');
+    console.log("Found product image:", image);
+    
+    // Add to items array only if we found a name
+    if (name) {
+      const item = {
+        name: name,
+        price: price,
+        quantity: quantity,
+        image: image
+      };
+      
+      console.log("Adding item to order:", item);
+      orderItems.push(item);
+    }
+  });
+  
+  // Get order total directly from the summary section
+  const orderTotal = $('.fw-bold.fs-5').text().trim();
+  console.log("Found order total:", orderTotal);
+  
+  // Return the collected data
+  return {
+    items: orderItems,
+    total: orderTotal
+  };
+}
+
+// Function to show order success message
+function showOrderSuccess(orderNumber) {
+  // Replace the entire container with a success message
+  $('.container.py-5').html(`
+    <div class="text-center py-5">
+      <div class="mb-4">
+        <i class="fas fa-check-circle fa-4x text-success"></i>
+      </div>
+      <h3>Order Successfully Placed!</h3>
+      <p class="text-muted mb-4">Thank you for your purchase. Your order has been successfully processed.</p>
+      <div class="alert alert-info mb-4">
+        <p class="mb-0"><strong>Order #:</strong> ${orderNumber}</p>
+        <p class="mb-0 mt-2"><a href="{% url 'orders' %}" class="text-decoration-none">View All Orders</a></p>
+      </div>
+      <a href="{% url 'home'%}" class="btn btn-primary px-4 py-2">
+        Continue Shopping
+      </a>
+    </div>
+  `);
+  
+  // Update cart count to zero in the header
+  updateCartIconCount(0);
+}
+
+// Function to update cart icon count
+function updateCartIconCount(count) {
+  // Update all possible cart count indicators
+  $('.cart-count, .cart-badge, #cart-count, #cart_quantity').text(count);
+  
+  // If the count is in an attribute, update that too
+  $('.cart-icon').attr('data-count', count);
+  
+  // Hide badge if count is zero
+  if (count === 0) {
+    $('.cart-count, .cart-badge').addClass('d-none');
+  } else {
+    $('.cart-count, .cart-badge').removeClass('d-none');
+  }
+}
+
+// Function to generate a random order number
+function generateOrderNumber() {
+  return 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+}
+
+// Helper function to get user ID
+function getUserId() {
+  // If user is authenticated, try to get their username/ID from the page
+  const username = '{{ user.username }}' || 'guest';
+  
+  // If the username is empty (template variable not populated), 
+  // use a guest ID based on browser fingerprint
+  if (!username || username === 'guest') {
+    // Generate a consistent guest ID using available browser info
+    const browserInfo = navigator.userAgent + navigator.language + screen.width + screen.height;
+    return 'guest_' + hashCode(browserInfo);
+  }
+  
+  return username;
+}
+
+// Simple hash function to generate consistent IDs for guest users
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(16).substring(0, 8);
+}
+
+// Function to save order to localStorage
+function saveOrderToLocalStorage(orderNumber, orderData) {
+  console.log("Saving order to localStorage:", orderNumber);
+  console.log("Order data to save:", orderData);
+  
+  // Get user address if available, otherwise use placeholder
+  let shippingAddress = '123 Main St, City, Country'; // Default
+  
+  // Create order object with all required fields
+  const order = {
+    id: orderNumber,
+    date: new Date().toISOString(),
+    status: 'Processing',
+    total: orderData.total,
+    subtotal: orderData.total, // Same as total since shipping is free
+    shipping: 'Free',
+    items: orderData.items,
+    address: shippingAddress,
+    paymentMethod: 'Cash on Delivery' // Default payment method
+  };
+  
+  console.log("Created order object:", order);
+  
+  // Get current user's ID
+  const userId = getUserId();
+  console.log("User ID for order:", userId);
+  
+  // Get existing orders for this user or create new array
+  let userOrders = [];
+  try {
+    userOrders = JSON.parse(localStorage.getItem('orders_' + userId) || '[]');
+  } catch (e) {
+    console.error("Error parsing existing orders:", e);
+    userOrders = [];
+  }
+  
+  // Add new order to the beginning of the array
+  userOrders.unshift(order);
+  console.log("Updated orders array:", userOrders);
+  
+  // Save back to localStorage with user-specific key
+  localStorage.setItem('orders_' + userId, JSON.stringify(userOrders));
+  console.log("Saved orders to localStorage with key:", 'orders_' + userId);
+
+}
+
 </script>
 {% endblock %}
